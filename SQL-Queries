@@ -1,0 +1,90 @@
+WITH batting_stats AS (
+    SELECT 
+        Year, 
+        SUM(Hits) AS Total_Hits,
+        SUM(Runs) AS Total_Runs,
+        SUM(At_Bats) AS Total_At_Bats,
+        CASE WHEN SUM(At_Bats) = 0 THEN 0 ELSE SUM(Hits) / SUM(At_Bats) END AS Avg_Batting_Avg
+    FROM chc_batting
+    GROUP BY Year
+    HAVING Avg_Batting_Avg >= 0.100
+),
+pitching_stats AS (
+    SELECT 
+        Year, 
+        SUM(Wins) AS Total_Wins,
+        SUM(Losses) AS Total_Losses,
+        ROUND(AVG(Earned_Run_Average),3) AS Avg_ERA
+    FROM chc_pitching
+    WHERE Earned_Run_Average <= 15
+    GROUP BY Year
+)
+
+SELECT 
+    b.Year,
+    b.Total_Hits,
+    b.Total_Runs,
+    b.Avg_Batting_Avg,
+    p.Total_Wins,
+    p.Total_Losses,
+    p.Avg_ERA
+FROM 
+    batting_stats b
+JOIN 
+    pitching_stats p ON b.Year = p.Year
+ORDER BY 
+    b.Year;
+
+#Top Batters
+
+WITH ranked_players AS (
+    SELECT 
+        b.year,
+        b.name,
+        SUM(b.Runs) AS Total_Runs,
+        AVG(b.Batting_Average) AS Batting_Avg,
+        ROW_NUMBER() OVER (PARTITION BY b.year ORDER BY SUM(b.Runs) DESC) as rn
+    FROM 
+        chc_batting as b
+    GROUP BY 
+        b.year, b.name
+)
+
+SELECT 
+    year, name, Total_Runs, Batting_Avg
+FROM 
+    ranked_players
+WHERE 
+    rn = 1
+ORDER BY 
+    year;
+    
+# Top Pitchers
+
+WITH ranked_pitchers AS (
+    SELECT 
+        p.year,
+        p.name,
+        SUM(p.Wins) AS Total_Wins,
+        AVG(p.Earned_Run_Average) AS Avg_ERA,
+        ROW_NUMBER() OVER (PARTITION BY p.year ORDER BY SUM(p.Wins) DESC) as rn
+    FROM 
+        chc_pitching as p
+    GROUP BY 
+        p.year, p.name
+)
+
+SELECT 
+    year, name, Total_Wins, Avg_ERA
+FROM 
+    ranked_pitchers
+WHERE 
+    rn = 1
+ORDER BY 
+    year;
+    
+# OPS Per Position
+SELECT Year, Position, AVG(On_Base_Plus_Slugging_Percentage_Plus) AS avg_ops_plus
+FROM chc_batting
+GROUP BY Year, Position
+ORDER BY Year, Position;
